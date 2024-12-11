@@ -4,6 +4,10 @@
 #include <stdbool.h>
 #include <time.h>
 
+#define BOARD_SIZE 20   // Tamanho do tabuleiro
+#define CELL_SIZE 27    // Tamanho de cada célula (em pixels)
+#define BOMBS_COUNT 10  // Quantidade de bombas
+
 typedef struct {
     bool isBomb;
     bool revealed;
@@ -197,96 +201,139 @@ void menu() {
 }
 
 // Função para desenhar o menu de pausa
-void DrawPauseMenu() {
-    ClearBackground(LIGHTGRAY);
-    DrawText("Jogo Pausado", 100, 50, 30, BLACK);
-    DrawRectangle(100, 150, 200, 50, GRAY);
-    DrawRectangle(100, 250, 200, 50, GRAY);
-    DrawText("Retornar", 140, 165, 20, BLACK);
-    DrawText("Sair", 160, 265, 20, BLACK);
+// Função para desenhar o menu de pausa
+void TextoPauseMenu(const char *opcoes[], int quantidadeOpcoes, Font fonte, int larguraTela, int alturaTela, int *selecionada) {
+    Vector2 pontoMouse = GetMousePosition();
+
+    for (int i = 0; i < quantidadeOpcoes; i++) {
+        Vector2 tamanhoTexto = MeasureTextEx(fonte, opcoes[i], 40, 2);
+        Vector2 posicaoTexto = (Vector2){(larguraTela - tamanhoTexto.x) / 2, 330 + i * 60};
+        Rectangle areaTexto = {posicaoTexto.x, posicaoTexto.y, tamanhoTexto.x, tamanhoTexto.y};
+
+        if (CheckCollisionPointRec(pontoMouse, areaTexto)) {
+            *selecionada = i;
+            Vector2 posicaoTriangulo = {posicaoTexto.x - 30, posicaoTexto.y + tamanhoTexto.y / 2};
+            DrawTriangle(
+                (Vector2){posicaoTriangulo.x + 10, posicaoTriangulo.y - 10},
+                (Vector2){posicaoTriangulo.x + 10, posicaoTriangulo.y + 10},
+                (Vector2){posicaoTriangulo.x + 20, posicaoTriangulo.y},
+                WHITE
+            );
+        }
+
+        DrawTextEx(fonte, opcoes[i], posicaoTexto, 40, 2, WHITE);
+    }
 }
+
+// Função para desenhar o menu de pausa
+void menuPause() {
+    Texture2D fundo = LoadTexture("./img/fundo.png");
+
+    Font fontePadrao = GetFontDefault();
+    const char *opcoesPause[] = {"Return", "Save and Return to Menu"};
+    int quantidadeOpcoes = sizeof(opcoesPause) / sizeof(opcoesPause[0]);
+    int selecionada = -1;
+
+    while (currentScreen == PAUSE && !WindowShouldClose()) {
+        BeginDrawing();
+        ClearBackground(LIGHTGRAY);
+
+        DrawTexture(fundo, 0, 0, WHITE);
+        TextoPauseMenu(opcoesPause, quantidadeOpcoes, fontePadrao, 1280, 720, &selecionada);
+
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && selecionada != -1) {
+            if (selecionada == 0) {  // Retornar ao jogo
+                currentScreen = GAME;
+            }
+            if (selecionada == 1) {  // Salvar e sair para o menu principal
+                SaveGame();
+                currentScreen = MENU;
+            }
+        }
+
+        EndDrawing();
+    }
+
+    UnloadTexture(fundo);
+}
+
 
 // Função principal
 int main() {
-     InitWindow(1280, 720, "Blast Escape");
-    //InitWindow(BOARD_SIZE * CELL_SIZE, BOARD_SIZE * CELL_SIZE + 50, "Campo Minado");
-    
+    InitWindow(1280, 620, "Blast Escape");
     SetExitKey(0); // Desativa o comportamento padrão do ESC para fechar a janela
 
     while (!WindowShouldClose()) {
-        Vector2 mousePos = GetMousePosition();
+        switch (currentScreen) {
+            case MENU:
+                menu();
+                break;
 
-        if (currentScreen == MENU) {
-            menu();
+            case GAME: {
+                if (IsKeyPressed(KEY_ESCAPE)) {
+                    currentScreen = PAUSE; // Pausa o jogo
+                }
 
-        } else if (currentScreen == GAME) {
-            if (IsKeyPressed(KEY_ESCAPE)) {
-                currentScreen = PAUSE; // Pausa o jogo
-            }
+                Vector2 mousePos = GetMousePosition();
+                int cellX = mousePos.x / CELL_SIZE;
+                int cellY = mousePos.y / CELL_SIZE;
 
-            Vector2 mousePos = GetMousePosition();
-            int cellX = mousePos.x / CELL_SIZE;
-            int cellY = mousePos.y / CELL_SIZE;
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    if (cellX >= 0 && cellX < BOARD_SIZE && cellY >= 0 && cellY < BOARD_SIZE) {
+                        if (!gameState.board[cellX][cellY].revealed) {
+                            gameState.board[cellX][cellY].revealed = true;
 
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                if (cellX >= 0 && cellX < BOARD_SIZE && cellY >= 0 && cellY < BOARD_SIZE) {
-                    if (!gameState.board[cellX][cellY].revealed) {
-                        gameState.board[cellX][cellY].revealed = true;
-
-                        if (gameState.board[cellX][cellY].isBomb) {
-                            gameState.lives--;
-                            if (gameState.lives <= 0) {
-                                gameState.gameOver = true;
+                            if (gameState.board[cellX][cellY].isBomb) {
+                                gameState.lives--;
+                                if (gameState.lives <= 0) {
+                                    gameState.gameOver = true;
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            BeginDrawing();
-            ClearBackground(RAYWHITE);
+                BeginDrawing();
+                ClearBackground(RAYWHITE);
 
-            for (int i = 0; i < BOARD_SIZE; i++) {
-                for (int j = 0; j < BOARD_SIZE; j++) {
-                    Rectangle cell = { i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE, CELL_SIZE };
-                    if (gameState.board[i][j].revealed) {
-                        if (gameState.board[i][j].isBomb) {
-                            DrawRectangleRec(cell, RED);
+                // Desenho do tabuleiro
+                for (int i = 0; i < BOARD_SIZE; i++) {
+                    for (int j = 0; j < BOARD_SIZE; j++) {
+                        Rectangle cell = { i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE, CELL_SIZE };
+                        if (gameState.board[i][j].revealed) {
+                            if (gameState.board[i][j].isBomb) {
+                                DrawRectangleRec(cell, RED);
+                            } else {
+                                DrawRectangleRec(cell, LIGHTGRAY);
+                            }
                         } else {
-                            DrawRectangleRec(cell, LIGHTGRAY);
+                            DrawRectangleRec(cell, GRAY);
                         }
-                    } else {
-                        DrawRectangleRec(cell, GRAY);
+                        DrawRectangleLines(cell.x, cell.y, cell.width, cell.height, BLACK);
                     }
-                    DrawRectangleLines(cell.x, cell.y, cell.width, cell.height, BLACK);
                 }
-            }
 
-            if (cellX >= 0 && cellX < BOARD_SIZE && cellY >= 0 && cellY < BOARD_SIZE) {
-                int bombsAround = CountBombsAround(cellX, cellY);
-                DrawText(TextFormat("Bombas ao redor: %d", bombsAround), 10, BOARD_SIZE * CELL_SIZE + 10, 20, DARKGRAY);
-            }
-
-            DrawText(TextFormat("Vidas restantes: %d", gameState.lives), 10, BOARD_SIZE * CELL_SIZE + 30, 20, DARKGRAY);
-
-            if (gameState.gameOver) {
-                DrawText("GAME OVER", 150, 200, 40, RED);
-            }
-
-            EndDrawing();
-        } else if (currentScreen == PAUSE) {
-            BeginDrawing();
-            DrawPauseMenu();
-            EndDrawing();
-
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                if (CheckCollisionPointRec(mousePos, (Rectangle){100, 150, 200, 50})) {
-                    currentScreen = GAME; // Retorna ao jogo
-                } else if (CheckCollisionPointRec(mousePos, (Rectangle){100, 250, 200, 50})) {
-                    SaveGame();
-                    currentScreen = MENU; // Volta ao menu principal
+                if (cellX >= 0 && cellX < BOARD_SIZE && cellY >= 0 && cellY < BOARD_SIZE) {
+                    int bombsAround = CountBombsAround(cellX, cellY);
+                    DrawText(TextFormat("Bombas ao redor: %d", bombsAround), 10, BOARD_SIZE * CELL_SIZE + 10, 20, DARKGRAY);
                 }
+
+                DrawText(TextFormat("Vidas restantes: %d", gameState.lives), 10, BOARD_SIZE * CELL_SIZE + 30, 20, DARKGRAY);
+
+                if (gameState.gameOver) {
+                    DrawText("GAME OVER", 150, 200, 40, RED);
+                }
+
+                EndDrawing();
+                break;
             }
+
+            case PAUSE:
+                menuPause();
+                break;
+
+            default:
+                break;
         }
     }
 
@@ -295,3 +342,4 @@ int main() {
 
     return 0;
 }
+
