@@ -4,9 +4,9 @@
 #include <stdbool.h>
 #include <time.h>
 
-#define BOARD_SIZE 20   // Tamanho do tabuleiro
-#define CELL_SIZE 27    // Tamanho de cada célula (em pixels)
-#define BOMBS_COUNT 10  // Quantidade de bombas
+#define BOARD_SIZE 20 
+#define CELL_SIZE 27  
+#define BOMBS_COUNT 10  
 
 typedef struct {
     bool isBomb;
@@ -30,12 +30,10 @@ typedef enum {
 
 GameScreen currentScreen = MENU;
 
-// Função para inicializar o jogo
 void InitGame(bool loadSavedGame) {
     gameState.lives = 3;
     gameState.gameOver = false;
 
-    // Inicializa o tabuleiro
     for (int i = 0; i < BOARD_SIZE; i++) {
         for (int j = 0; j < BOARD_SIZE; j++) {
             gameState.board[i][j].isBomb = false;
@@ -44,7 +42,6 @@ void InitGame(bool loadSavedGame) {
     }
 
     if (loadSavedGame) {
-        // Carregar o jogo salvo
         FILE *file = fopen(saveFileName, "r");
         if (file) {
             for (int i = 0; i < BOARD_SIZE; i++) {
@@ -59,7 +56,6 @@ void InitGame(bool loadSavedGame) {
             fclose(file);
         }
     } else {
-        // Distribuir bombas aleatoriamente
         srand(time(NULL));
         for (int i = 0; i < BOMBS_COUNT;) {
             int x = rand() % BOARD_SIZE;
@@ -72,7 +68,6 @@ void InitGame(bool loadSavedGame) {
     }
 }
 
-// Função para salvar o jogo
 void SaveGame() {
     FILE *file = fopen(saveFileName, "w");
     if (file) {
@@ -86,7 +81,6 @@ void SaveGame() {
     }
 }
 
-// Função para calcular bombas no raio de 4 casas
 int CountBombsAround(int x, int y) {
     int count = 0;
     for (int i = -4; i <= 4; i++) {
@@ -103,7 +97,6 @@ int CountBombsAround(int x, int y) {
     return count;
 }
 
-// Função para desenhar o menu principal
 void TextoMenu(const char *opcoes[], int quantidadeOpcoes, Font fonte, int larguraTela, int alturaTela, int *selecionada) {
     Vector2 pontoMouse = GetMousePosition();
 
@@ -136,6 +129,7 @@ void menu() {
     Texture2D nuvem = LoadTexture("./img/nuvem.png");
     Texture2D titulo = LoadTexture("./img/titulo.png");
 
+
     Texture2D roboAtual = robo1;
     int roboFrame = 0;
     float frameTime = 0.5f;
@@ -143,7 +137,7 @@ void menu() {
     float nuvemX = 0.0f, nuvemSpeed = 20.0f;
 
     Font fontePadrao = GetFontDefault();
-    const char *opcoesMenu[] = {"New Game", "Load Game", "Options", "Exit"};
+    const char *opcoesMenu[] = {"New Game", "Load Game", "Exit"};
     int quantidadeOpcoes = sizeof(opcoesMenu) / sizeof(opcoesMenu[0]);
     int selecionada = -1;
 
@@ -182,8 +176,8 @@ void menu() {
                 currentScreen = GAME;
                 return;
             }
-            if (selecionada == 2) { }
-            if (selecionada == 3) {
+           
+            if (selecionada == 2) {
                 CloseWindow();
                 return;
             }
@@ -200,8 +194,6 @@ void menu() {
     UnloadTexture(titulo);
 }
 
-// Função para desenhar o menu de pausa
-// Função para desenhar o menu de pausa
 void TextoPauseMenu(const char *opcoes[], int quantidadeOpcoes, Font fonte, int larguraTela, int alturaTela, int *selecionada) {
     Vector2 pontoMouse = GetMousePosition();
 
@@ -225,7 +217,6 @@ void TextoPauseMenu(const char *opcoes[], int quantidadeOpcoes, Font fonte, int 
     }
 }
 
-// Função para desenhar o menu de pausa
 void menuPause() {
     Texture2D fundo = LoadTexture("./img/fundo.png");
 
@@ -242,10 +233,10 @@ void menuPause() {
         TextoPauseMenu(opcoesPause, quantidadeOpcoes, fontePadrao, 1280, 720, &selecionada);
 
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && selecionada != -1) {
-            if (selecionada == 0) {  // Retornar ao jogo
+            if (selecionada == 0) { 
                 currentScreen = GAME;
             }
-            if (selecionada == 1) {  // Salvar e sair para o menu principal
+            if (selecionada == 1) {  
                 SaveGame();
                 currentScreen = MENU;
             }
@@ -258,10 +249,13 @@ void menuPause() {
 }
 
 
-// Função principal
+
 int main() {
     InitWindow(1280, 620, "Blast Escape");
-    SetExitKey(0); // Desativa o comportamento padrão do ESC para fechar a janela
+    SetExitKey(0); 
+
+    int offsetX = (GetScreenWidth() - (BOARD_SIZE * CELL_SIZE)) / 2;
+    int offsetY = (GetScreenHeight() - (BOARD_SIZE * CELL_SIZE)) / 2;
 
     while (!WindowShouldClose()) {
         switch (currentScreen) {
@@ -270,61 +264,74 @@ int main() {
                 break;
 
             case GAME: {
-                if (IsKeyPressed(KEY_ESCAPE)) {
-                    currentScreen = PAUSE; // Pausa o jogo
+Texture2D bombaImg = LoadTexture("./img/bomba.png");
+if (IsKeyPressed(KEY_ESCAPE)) {
+    currentScreen = PAUSE; 
+}
+
+Vector2 mousePos = GetMousePosition();
+int cellX = (mousePos.x - offsetX) / CELL_SIZE;
+int cellY = (mousePos.y - offsetY) / CELL_SIZE;
+
+if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    if (cellX >= 0 && cellX < BOARD_SIZE && cellY >= 0 && cellY < BOARD_SIZE) {
+        if (!gameState.board[cellX][cellY].revealed) {
+            gameState.board[cellX][cellY].revealed = true;
+
+            if (gameState.board[cellX][cellY].isBomb) {
+                // Cálculo da posição para a bomba
+                float xPos = offsetX + cellX * CELL_SIZE;
+                float yPos = offsetY + cellY * CELL_SIZE;
+                
+                // Desenhando a bomba na célula
+                DrawTextureEx(bombaImg, (Vector2){xPos, yPos}, 0.0f, 1.0f, WHITE);
+                
+                gameState.lives--;
+                if (gameState.lives <= 0) {
+                    gameState.gameOver = true;
                 }
+            }
+        }
+    }
+}
 
-                Vector2 mousePos = GetMousePosition();
-                int cellX = mousePos.x / CELL_SIZE;
-                int cellY = mousePos.y / CELL_SIZE;
+Texture2D fundojogo = LoadTexture("./img/fundojogo.jpg");
+BeginDrawing();
+ClearBackground(RAYWHITE);
+DrawTexture(fundojogo, 0, 0, WHITE);
 
-                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                    if (cellX >= 0 && cellX < BOARD_SIZE && cellY >= 0 && cellY < BOARD_SIZE) {
-                        if (!gameState.board[cellX][cellY].revealed) {
-                            gameState.board[cellX][cellY].revealed = true;
-
-                            if (gameState.board[cellX][cellY].isBomb) {
-                                gameState.lives--;
-                                if (gameState.lives <= 0) {
-                                    gameState.gameOver = true;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                BeginDrawing();
-                ClearBackground(RAYWHITE);
-
-                // Desenho do tabuleiro
-                for (int i = 0; i < BOARD_SIZE; i++) {
-                    for (int j = 0; j < BOARD_SIZE; j++) {
-                        Rectangle cell = { i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE, CELL_SIZE };
-                        if (gameState.board[i][j].revealed) {
-                            if (gameState.board[i][j].isBomb) {
-                                DrawRectangleRec(cell, RED);
-                            } else {
-                                DrawRectangleRec(cell, LIGHTGRAY);
-                            }
-                        } else {
-                            DrawRectangleRec(cell, GRAY);
-                        }
-                        DrawRectangleLines(cell.x, cell.y, cell.width, cell.height, BLACK);
-                    }
-                }
+for (int i = 0; i < BOARD_SIZE; i++) {
+    for (int j = 0; j < BOARD_SIZE; j++) {
+        Rectangle cell = { offsetX + i * CELL_SIZE, offsetY + j * CELL_SIZE, CELL_SIZE, CELL_SIZE };
+        if (gameState.board[i][j].revealed) {
+            if (gameState.board[i][j].isBomb) {
+                DrawRectangleRec(cell, (Color){255, 140, 0, 255}); // Cor da célula com bomba
+            } else {
+                DrawRectangleRec(cell, (Color){139, 69, 19, 255}); // Cor de célula não-bomba
+            }
+        } else {
+            DrawRectangleRec(cell, (Color){154, 205, 50, 255}); // Cor das células não reveladas
+        }
+        DrawRectangleLines(cell.x, cell.y, cell.width, cell.height, (Color){0, 100, 0, 255}); // Borda das células
+    }
+}
 
                 if (cellX >= 0 && cellX < BOARD_SIZE && cellY >= 0 && cellY < BOARD_SIZE) {
                     int bombsAround = CountBombsAround(cellX, cellY);
-                    DrawText(TextFormat("Bombas ao redor: %d", bombsAround), 10, BOARD_SIZE * CELL_SIZE + 10, 20, DARKGRAY);
+                    DrawText(TextFormat("Bombas ao redor: %d", bombsAround), 10, BOARD_SIZE * CELL_SIZE + 10, 20, BLACK);
                 }
 
-                DrawText(TextFormat("Vidas restantes: %d", gameState.lives), 10, BOARD_SIZE * CELL_SIZE + 30, 20, DARKGRAY);
+                Texture2D vidaImg = LoadTexture("./img/coracao.png");
+                for (int i = 0; i < gameState.lives; i++) {
+                    DrawTexture(vidaImg, 10 + i * (vidaImg.width + 10), 10, WHITE);
+                }
 
                 if (gameState.gameOver) {
-                    DrawText("GAME OVER", 150, 200, 40, RED);
+                    DrawText("GAME OVER", 300, 200, 100, RED);
                 }
 
                 EndDrawing();
+                UnloadTexture(fundojogo);
                 break;
             }
 
@@ -336,7 +343,6 @@ int main() {
                 break;
         }
     }
-
     SaveGame();
     CloseWindow();
 
